@@ -15,15 +15,16 @@ pub fn update_pick_source_positions(
         Option<&Camera>,
     )>,
 ) {
+    let cursor_last =  cursor.iter().last();
     for (mut pick_source, option_update_picks, option_camera) in &mut pick_source_query.iter_mut() {
         let (mut update_picks, cursor_latest) = match get_inputs(
             option_camera,
             option_update_picks,
-            &mut cursor,
+            &cursor_last,
             &touches_input,
         ) {
             Some(value) => value,
-            None => return,
+            None => continue,
         };
         match *update_picks {
             UpdatePicks::EveryFrame(cached_cursor_pos) => {
@@ -48,13 +49,13 @@ pub fn update_pick_source_positions(
 fn get_inputs<'a>(
     option_camera: Option<&Camera>,
     option_update_picks: Option<Mut<'a, UpdatePicks>>,
-    cursor: &mut EventReader<CursorMoved>,
+    cursor_last: &Option<&CursorMoved>,
     touches_input: &Res<Touches>,
 ) -> Option<(Mut<'a, UpdatePicks>, Option<Vec2>)> {
     let camera = option_camera?;
     let update_picks = option_update_picks?;
     let height = camera.logical_target_size()?.y;
-    let cursor_latest = match cursor.iter().last() {
+    let cursor_latest = match cursor_last {
         Some(cursor_moved) => {
             if let RenderTarget::Window(window) = camera.target {
                 if cursor_moved.id == window {
