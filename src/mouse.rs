@@ -1,7 +1,7 @@
 use crate::{PickingCamera, UpdatePicks};
 use bevy::{
     prelude::*,
-    render::camera::{Camera, RenderTarget},
+    render::camera::{Camera, RenderTarget, Viewport},
 };
 use bevy_mod_raycast::RayCastMethod;
 
@@ -15,7 +15,7 @@ pub fn update_pick_source_positions(
         Option<&Camera>,
     )>,
 ) {
-    let cursor_last =  cursor.iter().last();
+    let cursor_last = cursor.iter().last();
     for (mut pick_source, option_update_picks, option_camera) in &mut pick_source_query.iter_mut() {
         let (mut update_picks, cursor_latest) = match get_inputs(
             option_camera,
@@ -54,12 +54,20 @@ fn get_inputs<'a>(
 ) -> Option<(Mut<'a, UpdatePicks>, Option<Vec2>)> {
     let camera = option_camera?;
     let update_picks = option_update_picks?;
-    let height = camera.logical_target_size()?.y;
+    let height = camera.logical_viewport_size()?.y;
     let cursor_latest = match cursor_last {
         Some(cursor_moved) => {
             if let RenderTarget::Window(window) = camera.target {
                 if cursor_moved.id == window {
-                    Some(cursor_moved.position)
+                    if let Some(viewport) = &camera.viewport {
+                        if let Some(pos) = window_to_viewport(viewport, cursor_moved.position) {
+                            Some(pos)
+                        } else {
+                            return None;
+                        }
+                    } else {
+                        Some(cursor_moved.position)
+                    }
                 } else {
                     None
                 }
@@ -75,4 +83,26 @@ fn get_inputs<'a>(
         }),
     };
     Some((update_picks, cursor_latest))
+}
+
+/// translates a window position into the relative position in the viewport, if the cursor is over the viewport
+pub fn window_to_viewport(viewport: &Viewport, window_position: Vec2) -> Option<Vec2> {
+    let origin: Vec2 = Vec2::new(
+        viewport.physical_position.x as f32,
+        viewport.physical_position.y as f32,
+    );
+    let size: Vec2 = Vec2::new(
+        viewport.physical_size.x as f32,
+        viewport.physical_size.y as f32,
+    );
+    if window_position.x > origin.x && window_position.y > origin.y {
+        let cropped = window_position - origin;
+        if cropped.x <= size.x && cropped.y <= size.y {
+            Some(cropped)
+        } else {
+            None
+        }
+    } else {
+        None
+    }
 }
