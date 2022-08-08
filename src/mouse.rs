@@ -59,8 +59,8 @@ fn get_inputs<'a>(
         Some(cursor_moved) => {
             if let RenderTarget::Window(window) = camera.target {
                 if cursor_moved.id == window {
-                    if let Some(viewport) = &camera.viewport {
-                        if let Some(pos) = window_to_viewport(viewport, cursor_moved.position) {
+                    if let Some(_) = &camera.viewport {
+                        if let Some(pos) = window_to_viewport(camera, cursor_moved.position) {
                             Some(pos)
                         } else {
                             return None;
@@ -86,22 +86,16 @@ fn get_inputs<'a>(
 }
 
 /// translates a window position into the relative position in the viewport, if the cursor is over the viewport
-pub fn window_to_viewport(viewport: &Viewport, window_position: Vec2) -> Option<Vec2> {
-    let origin: Vec2 = Vec2::new(
-        viewport.physical_position.x as f32,
-        viewport.physical_position.y as f32,
-    );
-    let size: Vec2 = Vec2::new(
-        viewport.physical_size.x as f32,
-        viewport.physical_size.y as f32,
-    );
-    if window_position.x > origin.x && window_position.y > origin.y {
-        let cropped = window_position - origin;
-        if cropped.x <= size.x && cropped.y <= size.y {
-            Some(cropped)
-        } else {
-            None
-        }
+pub fn window_to_viewport(camera: &Camera, window_position: Vec2) -> Option<Vec2> {
+    let height = camera.physical_target_size()?.y;
+    let (min, max) = camera.physical_viewport_rect()?;
+    let cursor = window_position.as_uvec2();
+    let mirror_y = height - window_position.y as u32;
+    if cursor.x >= min.x && mirror_y >= min.y && cursor.x < max.x  && mirror_y < max.y {
+        let vp_height = camera.physical_viewport_size()?.y as f32;
+        let unmirror_y = (((window_position.y - min.y as f32) % vp_height) + vp_height) % vp_height;
+        let viewport_position = Vec2::new(window_position.x - min.x as f32, unmirror_y);
+        Some(viewport_position)
     } else {
         None
     }
