@@ -87,10 +87,10 @@ fn get_inputs<'a>(
 
 /// translates a window position into the relative position in the viewport, if the cursor is over the viewport
 pub fn window_to_viewport(camera: &Camera, window_position: Vec2) -> Option<Vec2> {
-    let height = camera.physical_target_size()?.y;
+    let height = camera.physical_target_size()?.y as i32;
     let (min, max) = camera.physical_viewport_rect()?;
     let cursor = window_position.as_uvec2();
-    let mirror_y = height - window_position.y as u32;
+    let mirror_y = (height - window_position.y as i32).max(0) as u32;
     if cursor.x >= min.x && mirror_y >= min.y && cursor.x < max.x  && mirror_y < max.y {
         let vp_height = camera.physical_viewport_size()?.y as f32;
         let unmirror_y = (((window_position.y - min.y as f32) % vp_height) + vp_height) % vp_height;
